@@ -1,0 +1,24 @@
+
+# Vivado generated output
+*.cache/
+*.hw/
+*.runs/
+*.sim/
+ip_user_files/
+*.jou
+*.log
+*.str
+*.wdb
+*.vcd
+
+# Windows files
+desktop.ini
+Thumbs.db
+
+# Secrets and private credentials
+.env
+.env.*
+*.pem
+*.key
+
+*.dcp
