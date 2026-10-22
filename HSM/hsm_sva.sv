@@ -1,7 +1,7 @@
+
 `timescale 1ns/1ps
 
 module hsm_sva (
-
     input logic clk,
     input logic reset,
 
@@ -15,9 +15,10 @@ module hsm_sva (
     input logic hsm_locked
 );
 
-    // Authentication required
+    // Access requires previous-cycle authentication.
     property p_authentication_required;
         @(posedge clk)
+        disable iff (reset)
         access_grant |-> $past(authenticated);
     endproperty
 
@@ -25,9 +26,11 @@ module hsm_sva (
         else $error("HSM FAIL: Unauthenticated access");
 
 
-    // Locked state blocks access
+    // REQUIRED PROPERTY 1:
+    // A locked HSM must never grant access.
     property p_locked_no_access;
         @(posedge clk)
+        disable iff (reset)
         hsm_locked |-> !access_grant;
     endproperty
 
@@ -35,9 +38,23 @@ module hsm_sva (
         else $error("HSM FAIL: Access while locked");
 
 
-    // Security error forces lock
+    // REQUIRED PROPERTY 2:
+    // Access must be denied in the cycle following
+    // a sampled security error.
+    property p_security_error_no_access;
+        @(posedge clk)
+        disable iff (reset)
+        security_error |=> !access_grant;
+    endproperty
+
+    assert property (p_security_error_no_access)
+        else $error("HSM FAIL: Access after security error");
+
+
+    // A security error must result in a locked state.
     property p_security_error_lock;
         @(posedge clk)
+        disable iff (reset)
         security_error |=> hsm_locked;
     endproperty
 
@@ -45,20 +62,21 @@ module hsm_sva (
         else $error("HSM FAIL: Security error did not lock HSM");
 
 
-// Protected operation must be associated with authorization.
-// Authorization may occur in the same cycle that BUSY becomes active.
-property p_busy_requires_authorization;
-    @(posedge clk)
-    busy |-> (access_grant || $past(access_grant));
-endproperty
+    // Busy must be associated with authorization.
+    property p_busy_requires_authorization;
+        @(posedge clk)
+        disable iff (reset)
+        busy |-> (access_grant || $past(access_grant));
+    endproperty
 
-assert property (p_busy_requires_authorization)
-    else $error("HSM FAIL: Busy without authorization");
+    assert property (p_busy_requires_authorization)
+        else $error("HSM FAIL: Busy without authorization");
 
 
-    // Locked state blocks operation
+    // A locked HSM cannot grant access or remain busy.
     property p_locked_no_operation;
         @(posedge clk)
+        disable iff (reset)
         hsm_locked |-> (!access_grant && !busy);
     endproperty
 
@@ -66,9 +84,10 @@ assert property (p_busy_requires_authorization)
         else $error("HSM FAIL: Operation active while locked");
 
 
-    // Completion follows crypto activity
+    // Completion must follow crypto activity.
     property p_completion_after_crypto;
         @(posedge clk)
+        disable iff (reset)
         crypto_done |-> $past(busy);
     endproperty
 
@@ -76,9 +95,11 @@ assert property (p_busy_requires_authorization)
         else $error("HSM FAIL: Invalid crypto completion");
 
 
-    // Unauthorized request cannot grant access
+    // An unauthenticated request must not grant access
+    // in the following cycle.
     property p_unauthorized_request;
         @(posedge clk)
+        disable iff (reset)
         (access_req && !authenticated) |=> !access_grant;
     endproperty
 
@@ -86,7 +107,7 @@ assert property (p_busy_requires_authorization)
         else $error("HSM FAIL: Unauthorized request granted");
 
 
-    // Reset safe state
+    // Reset must leave access and busy inactive.
     property p_reset_safe;
         @(posedge clk)
         reset |=> (!access_grant && !busy);
@@ -96,10 +117,11 @@ assert property (p_busy_requires_authorization)
         else $error("HSM FAIL: Unsafe state after reset");
 
 
-    // Lock persistence
+    // Once locked, the HSM remains locked until reset.
     property p_lock_persistence;
         @(posedge clk)
-        hsm_locked && !reset |=> hsm_locked;
+        disable iff (reset)
+        hsm_locked |=> hsm_locked;
     endproperty
 
     assert property (p_lock_persistence)

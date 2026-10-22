@@ -1,7 +1,7 @@
+
 `timescale 1ns/1ps
 
 module security_access_ctrl_sva (
-
     input logic clk,
     input logic reset,
 
@@ -15,7 +15,7 @@ module security_access_ctrl_sva (
     input logic ack
 );
 
-    // Reset must result in safe access state
+    // Reset must result in a safe access state
     property p_reset_safe;
         @(posedge clk)
         reset |=> !access_grant;
@@ -28,6 +28,7 @@ module security_access_ctrl_sva (
     // Locked system cannot grant access
     property p_locked_no_access;
         @(posedge clk)
+        disable iff (reset)
         locked |=> !access_grant;
     endproperty
 
@@ -38,6 +39,7 @@ module security_access_ctrl_sva (
     // Security error blocks access
     property p_security_error_no_access;
         @(posedge clk)
+        disable iff (reset)
         security_error |=> !access_grant;
     endproperty
 
@@ -45,9 +47,10 @@ module security_access_ctrl_sva (
         else $error("SVA FAIL: Access granted during security error");
 
 
-    // Authentication is required
+    // Authentication is required for access
     property p_authentication_required;
         @(posedge clk)
+        disable iff (reset)
         access_grant |-> $past(authenticated);
     endproperty
 
@@ -58,6 +61,7 @@ module security_access_ctrl_sva (
     // Access requires a previous request
     property p_access_requires_request;
         @(posedge clk)
+        disable iff (reset)
         access_grant |-> $past(access_req);
     endproperty
 
@@ -65,9 +69,10 @@ module security_access_ctrl_sva (
         else $error("SVA FAIL: Access granted without request");
 
 
-    // Valid access conditions
+    // Access must satisfy all security conditions
     property p_valid_access;
         @(posedge clk)
+        disable iff (reset)
         access_grant |-> (
             $past(access_req) &&
             $past(authenticated) &&
@@ -80,9 +85,10 @@ module security_access_ctrl_sva (
         else $error("SVA FAIL: Invalid access grant");
 
 
-    // Request produces busy indication
+    // A request must produce BUSY in the next sampled cycle
     property p_request_busy;
         @(posedge clk)
+        disable iff (reset)
         access_req |=> busy;
     endproperty
 
@@ -90,9 +96,10 @@ module security_access_ctrl_sva (
         else $error("SVA FAIL: Request did not produce BUSY");
 
 
-    // Request produces acknowledgement
+    // A request must produce ACK in the next sampled cycle
     property p_request_ack;
         @(posedge clk)
+        disable iff (reset)
         access_req |=> ack;
     endproperty
 
@@ -100,9 +107,10 @@ module security_access_ctrl_sva (
         else $error("SVA FAIL: Request did not produce ACK");
 
 
-    // ACK requires request
+    // ACK must correspond to a previous request
     property p_ack_requires_request;
         @(posedge clk)
+        disable iff (reset)
         ack |-> $past(access_req);
     endproperty
 
@@ -110,9 +118,10 @@ module security_access_ctrl_sva (
         else $error("SVA FAIL: ACK without request");
 
 
-    // Unauthorized request must not grant access
+    // Unauthorized access must never be granted
     property p_unauthorized_access;
         @(posedge clk)
+        disable iff (reset)
         (access_req && !authenticated) |=> !access_grant;
     endproperty
 

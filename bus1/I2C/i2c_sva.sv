@@ -1,59 +1,103 @@
+
 `timescale 1ns/1ps
 
 module i2c_sva (
+    input  logic clk,
+    input  logic reset,
+    input  logic scl,
+    input  logic sda,
 
-    input logic clk,
-    input logic reset,
-
-    input logic scl,
-    input logic sda
+    output logic i2c_error_o
 );
 
-    // SDA and SCL must be known
+    logic sda_prev;
+    logic prev_valid;
+
+    logic start_detected;
+    logic stop_detected;
+    logic illegal_sda_change;
+
+    // Detect START and STOP conditions at the sampling clock.
+    // START: SDA falls while SCL remains HIGH.
+    // STOP:  SDA rises while SCL remains HIGH.
+    always_comb begin
+        start_detected =
+            (scl === 1'b1) &&
+            (sda_prev === 1'b1) &&
+            (sda === 1'b0);
+
+        stop_detected =
+            (scl === 1'b1) &&
+            (sda_prev === 1'b0) &&
+            (sda === 1'b1);
+
+        // An SDA transition while SCL is HIGH is legal only
+        // when it represents START or STOP.
+        illegal_sda_change =
+            prev_valid &&
+            (scl === 1'b1) &&
+            (sda !== sda_prev) &&
+            !start_detected &&
+            !stop_detected;
+    end
+
+    // Track the previous known SDA sample.
+    always_ff @(posedge clk) begin
+        if (reset) begin
+            sda_prev   <= 1'b1;
+            prev_valid <= 1'b0;
+        end
+        else if (!$isunknown(sda)) begin
+            sda_prev   <= sda;
+            prev_valid <= 1'b1;
+        end
+        else begin
+            prev_valid <= 1'b0;
+        end
+    end
+
+    // Sticky security error: stays high until reset.
+    always_ff @(posedge clk) begin
+        if (reset) begin
+            i2c_error_o <= 1'b0;
+        end
+        else if ($isunknown(scl) ||
+                 $isunknown(sda) ||
+                 illegal_sda_change) begin
+            i2c_error_o <= 1'b1;
+        end
+    end
+
+    // Assertions for unknown signal values.
     property p_scl_known;
         @(posedge clk)
+        disable iff (reset)
         !$isunknown(scl);
+    endproperty
+
+    property p_sda_known;
+        @(posedge clk)
+        disable iff (reset)
+        !$isunknown(sda);
     endproperty
 
     assert property (p_scl_known)
         else $error("I2C FAIL: SCL unknown");
 
-
-    property p_sda_known;
-        @(posedge clk)
-        !$isunknown(sda);
-    endproperty
-
     assert property (p_sda_known)
         else $error("I2C FAIL: SDA unknown");
 
-
-    // SDA should remain stable while SCL is HIGH
-    // except during START/STOP transitions.
-    property p_sda_stable_high;
+    // An SDA transition during SCL HIGH must be START or STOP.
+    property p_sda_change_high_is_start_or_stop;
         @(posedge clk)
-        (scl && !$rose(sda) && !$fell(sda))
-        |-> $stable(sda);
+        disable iff (reset)
+        (prev_valid &&
+         (scl === 1'b1) &&
+         (sda !== sda_prev))
+        |-> (start_detected || stop_detected);
     endproperty
 
-    assert property (p_sda_stable_high)
-        else $error("I2C FAIL: SDA stability violation");
-
-
-    // START condition:
-    // SDA HIGH -> LOW while SCL HIGH
-    property p_start_condition;
-        @(posedge clk)
-        (scl && $past(sda) && !sda);
-    endproperty
-
-    // STOP condition:
-    // SDA LOW -> HIGH while SCL HIGH
-    property p_stop_condition;
-        @(posedge clk)
-        (scl && !$past(sda) && sda);
-    endproperty
-
- 
+    assert property (p_sda_change_high_is_start_or_stop)
+        else $error("I2C FAIL: Illegal SDA transition while SCL HIGH");
 
 endmodule

@@ -5,11 +5,16 @@
 *.runs/
 *.sim/
 ip_user_files/
+*_ip_user_files/
 *.jou
 *.log
 *.str
 *.wdb
 *.vcd
+*.dcp
+
+# Vivado project-local generated files
+*.ip_user_files/
 
 # Windows files
 desktop.ini
@@ -20,5 +25,3 @@ Thumbs.db
 .env.*
 *.pem
 *.key
-
-*.dcp
