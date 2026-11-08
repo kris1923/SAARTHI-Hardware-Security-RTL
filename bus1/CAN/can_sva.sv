@@ -15,6 +15,33 @@ module can_sva (
     output logic can_error_o
 );
 
+    // Sticky security-error flag.
+    // Reset clears it; detected CAN faults set it.
+    always_ff @(posedge clk) begin
+
+        if (reset) begin
+            can_error_o <= 1'b0;
+        end
+        else begin
+
+            // Synthesizable CAN fault detection.
+            if (frame_active && (bit_error || ack_error)) begin
+                can_error_o <= 1'b1;
+            end
+
+`ifndef SYNTHESIS
+            // Simulation-only X/Z detection.
+            if ($isunknown(can_tx) || $isunknown(can_rx)) begin
+                can_error_o <= 1'b1;
+            end
+`endif
+
+        end
+    end
+
+    // Simulation-only CAN assertions.
+`ifndef SYNTHESIS
+
     // CAN recessive state is logic HIGH.
     property p_reset_safe;
         @(posedge clk)
@@ -72,17 +99,6 @@ module can_sva (
     assert property (p_reset_no_frame)
         else $error("CAN FAIL: Frame active after reset");
 
-    // Sticky security-error flag.
-    // Reset clears it; a detected CAN fault sets it.
-    always_ff @(posedge clk) begin
-        if (reset)
-            can_error_o <= 1'b0;
-        else if (
-            (frame_active && (bit_error || ack_error)) ||
-            $isunknown(can_tx) ||
-            $isunknown(can_rx)
-        )
-            can_error_o <= 1'b1;
-    end
+`endif
 
 endmodule

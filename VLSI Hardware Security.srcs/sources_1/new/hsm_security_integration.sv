@@ -81,7 +81,9 @@ module hsm_security_integration (
     logic i2c_combined_event;
     logic can_combined_event;
 
-    // Combine external events and monitor faults.
+    logic combined_security_fault;
+
+    // Combine external events with protocol monitor faults.
     assign spi_combined_event =
         spi_event_i | spi_monitor_error_o;
 
@@ -90,6 +92,13 @@ module hsm_security_integration (
 
     assign can_combined_event =
         can_event_i | can_monitor_error_o;
+
+    // Combine all security faults for AXI HSM reporting.
+assign combined_security_fault =
+    spi_combined_event |
+    i2c_combined_event |
+    can_combined_event |
+    hsm_event_i;
 
     // SPI protocol monitor
     spi_sva u_spi_sva (
@@ -123,7 +132,7 @@ module hsm_security_integration (
         .can_error_o(can_monitor_error_o)
     );
 
-    // Common security-event bus
+    // Common security-event interface
     security_event_if u_security_event_if (
         .clk(clk),
         .rst_n(rst_n),
@@ -163,7 +172,10 @@ module hsm_security_integration (
         .s_axi_rready(s_axi_rready),
 
         .authenticated_i(authenticated_i),
-        .security_error_i(hsm_event_i),
+
+        // All security faults reach the AXI HSM block.
+        .security_error_i(combined_security_fault),
+
         .external_lock_i(event_interface_lock),
 
         .engine_busy_i(engine_busy_i),

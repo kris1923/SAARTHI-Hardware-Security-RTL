@@ -1,4 +1,3 @@
-
 `timescale 1ns/1ps
 
 module spi_sva (
@@ -12,23 +11,39 @@ module spi_sva (
     output logic spi_error_o
 );
 
-    // Track SPI protocol violations for the security-event bus.
-    // This is a sticky error: reset clears it.
+    logic sclk_prev;
+
+    // Synthesizable SPI monitoring logic.
+    // Detect an SCLK rising edge while chip select is inactive.
     always_ff @(posedge clk) begin
         if (reset) begin
             spi_error_o <= 1'b0;
+            sclk_prev   <= 1'b0;
         end
         else begin
-            if ((!cs_n && ($isunknown(mosi) || $isunknown(miso))) ||
-                (reset && !cs_n)) begin
+            if (cs_n && sclk && !sclk_prev) begin
                 spi_error_o <= 1'b1;
             end
+
+            // Simulation-only X/Z detection.
+`ifndef SYNTHESIS
+            if (!cs_n &&
+                ($isunknown(mosi) || $isunknown(miso))) begin
+                spi_error_o <= 1'b1;
+            end
+`endif
+
+            sclk_prev <= sclk;
         end
     end
 
-    // Chip select must be active when SPI data is sampled.
+    // Simulation-only assertions.
+`ifndef SYNTHESIS
+
+    // SPI clock must not have a rising edge while CS is inactive.
     property p_spi_selected;
         @(posedge sclk)
+        disable iff (reset)
         !cs_n;
     endproperty
 
@@ -38,6 +53,7 @@ module spi_sva (
     // MOSI must be known when sampled.
     property p_mosi_known;
         @(posedge sclk)
+        disable iff (reset)
         !cs_n |-> !$isunknown(mosi);
     endproperty
 
@@ -47,6 +63,7 @@ module spi_sva (
     // MISO must be known when sampled.
     property p_miso_known;
         @(posedge sclk)
+        disable iff (reset)
         !cs_n |-> !$isunknown(miso);
     endproperty
 
@@ -61,5 +78,7 @@ module spi_sva (
 
     assert property (p_reset_spi_safe)
         else $error("SPI FAIL: CS active during reset");
+
+`endif
 
 endmodule
