@@ -1,0 +1,52 @@
+{
+  "project": "HSM Security Integration",
+  "verification_type": "simulation_testbench_summary",
+  "target_device": "xc7a200tfbg676-2",
+  "clock": {
+    "name": "sys_clk",
+    "period_ns": 10.0,
+    "frequency_mhz": 100
+  },
+  "integration_testbench": {
+    "top": "tb_hsm_security_integration",
+    "total_scenarios": 9,
+    "passed_scenarios": 9,
+    "testbench_errors": 0,
+    "result": "PASS"
+  },
+  "verified_scenarios": {
+    "external_spi_alert_locks_hsm": true,
+    "reset_clears_hsm_lock": true,
+    "external_i2c_alert_locks_hsm": true,
+    "external_can_alert_locks_hsm": true,
+    "external_hsm_alert_locks_hsm": true,
+    "locked_key_slot_write_rejected": true,
+    "can_monitor_bit_error_locks_hsm": true,
+    "spi_monitor_unknown_data_locks_hsm": true,
+    "i2c_monitor_unknown_line_locks_hsm": true
+  },
+  "last_fault_injection_observed": {
+    "bus": "I2C",
+    "fault": "SDA unknown-state injection",
+    "monitor_error_detected": true,
+    "hsm_lock_detected": true
+  },
+  "implementation": {
+    "synthesis": "completed_successfully",
+    "implementation": "completed_successfully",
+    "post_route_timing": {
+      "wns_ns": 3.499,
+      "tns_ns": 0.0,
+      "whs_ns": 0.155,
+      "ths_ns": 0.0,
+      "setup_failing_endpoints": 0,
+      "hold_failing_endpoints": 0,
+      "qualification": "Specified timing constraints met; input/output delays remain unassigned."
+    }
+  },
+  "limitations": [
+    "This is a simulation verification summary, not live hardware telemetry.",
+    "The testbench does not export a complete HSM register snapshot or all internal register lock states.",
+    "X/Z detection is simulation-only, not a physical hardware state detector."
+  ]
+}

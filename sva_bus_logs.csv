@@ -1,0 +1,10 @@
+simulation_time,bus_or_block,event,stimulus,observed_result,test_result,testbench_reference
+,SPI,External security alert,spi_event_i asserted,HSM lock asserted,PASS,Test 1
+,SYSTEM,Reset recovery,reset_system task,HSM lock cleared,PASS,Test 2
+,I2C,External security alert,i2c_event_i asserted,HSM lock asserted,PASS,Test 3
+,CAN,External security alert,can_event_i asserted,HSM lock asserted,PASS,Test 4
+,HSM,External HSM alert,hsm_event_i asserted,HSM lock asserted,PASS,Test 5
+,AXI4-Lite/HSM,Protected key-slot write,Write attempted while locked,SLVERR response; key slot unchanged,PASS,Test 6
+465-495 ns,CAN,Injected bit error,can_bit_error_i asserted during active frame,CAN monitor error and HSM lock detected,PASS,Test 7; repeated assertion samples
+,SPI,Injected unknown data,spi_mosi_i driven to X while CS active,SPI monitor error and HSM lock detected,PASS,Test 8
+665-695 ns,I2C,Injected unknown bus line,i2c_sda_i driven to X while SCL high,I2C monitor error and HSM lock detected,PASS,Test 9; repeated assertion samples
